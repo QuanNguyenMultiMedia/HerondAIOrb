@@ -5,6 +5,7 @@ import { useControls, folder } from 'leva'
 import { MeshTransmissionMaterial } from '@react-three/drei'
 import orbVertexShader from '../shaders/orbVertex.glsl?raw'
 import orbFragmentShader from '../shaders/orbFragment.glsl?raw'
+import SwarmLayer from './SwarmLayer'
 import config from '../../ai-orb-config.json'
 
 function GlassShell() {
@@ -12,13 +13,13 @@ function GlassShell() {
 
   const glassConfig = useControls('Glass Lens', {
     transmission: { value: config['Glass Lens.transmission'] ?? 1.00, min: 0, max: 1 },
-    thickness: { value: config['Glass Lens.thickness'] ?? 10.0, min: 0, max: 10 },
-    roughness: { value: config['Glass Lens.roughness'] ?? 0.25, min: 0, max: 1 },
-    ior: { value: config['Glass Lens.ior'] ?? 1.12, min: 1, max: 3 },
+    thickness: { value: config['Glass Lens.thickness'] ?? 3.6, min: 0, max: 10 },
+    roughness: { value: config['Glass Lens.roughness'] ?? 0.3, min: 0, max: 1 },
+    ior: { value: config['Glass Lens.ior'] ?? 1.18, min: 1, max: 3 },
     chromaticAberration: { value: config['Glass Lens.chromaticAberration'] ?? 0.00, min: 0, max: 1 },
     distortion: { value: config['Glass Lens.distortion'] ?? 0.00, min: 0, max: 2 },
     distortionScale: { value: config['Glass Lens.distortionScale'] ?? 0.00, min: 0, max: 2 },
-    temporalDistortion: { value: config['Glass Lens.temporalDistortion'] ?? 0.03, min: 0, max: 1 },
+    temporalDistortion: { value: config['Glass Lens.temporalDistortion'] ?? 0.55, min: 0, max: 1 },
   })
 
   // The glass lens remains completely stationary to preserve the fixed refractive distortion mapping
@@ -121,6 +122,10 @@ function OrbShell({
   rotationSpeedX = 0.05,
   rotationSpeedY = 0.1,
   rotationSpeedZ = 0.0,
+  rotationX = 0.0,
+  rotationY = 0.0,
+  rotationZ = 0.0,
+  rotationSpeed = 0.5,
   scale = 1.0,
   positionOffset = [0, 0, 0],
   renderOrder = 1,
@@ -197,9 +202,20 @@ function OrbShell({
         (visibility - current) * 0.04
     }
     if (meshRef.current) {
-        meshRef.current.rotation.x = clock.elapsedTime * rotationSpeedX;
-        meshRef.current.rotation.y = clock.elapsedTime * rotationSpeedY;
-        meshRef.current.rotation.z = clock.elapsedTime * rotationSpeedZ;
+        const qBase = new THREE.Quaternion().setFromEuler(new THREE.Euler(rotationX, rotationY, rotationZ, 'YXZ'));
+        const qInitial = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+        
+        const qAnimX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), clock.elapsedTime * rotationSpeedX * rotationSpeed);
+        const qAnimY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), clock.elapsedTime * rotationSpeedY * rotationSpeed);
+        const qAnimZ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), clock.elapsedTime * rotationSpeedZ * rotationSpeed);
+        
+        const finalQ = new THREE.Quaternion()
+            .multiplyQuaternions(qAnimZ, qAnimY)
+            .multiply(qAnimX)
+            .multiply(qBase)
+            .multiply(qInitial);
+            
+        meshRef.current.quaternion.copy(finalQ);
         
         const finalScale = scale * controls.layerScale;
         meshRef.current.scale.setScalar(finalScale);
@@ -240,6 +256,10 @@ export default function AIOrb({ visibility = 1.0, position = [0, 0, 0] }) {
     rotationSpeedX: { value: config['Transform.rotationSpeedX'] ?? 0.05, min: 0, max: 1, step: 0.01 },
     rotationSpeedY: { value: config['Transform.rotationSpeedY'] ?? 0.1, min: 0, max: 1, step: 0.01 },
     rotationSpeedZ: { value: config['Transform.rotationSpeedZ'] ?? 0.0, min: 0, max: 1, step: 0.01 },
+    rotationX: { value: config['Transform.rotationX'] ?? 0.0, min: -Math.PI, max: Math.PI, step: 0.01 },
+    rotationY: { value: config['Transform.rotationY'] ?? 0.0, min: -Math.PI, max: Math.PI, step: 0.01 },
+    rotationZ: { value: config['Transform.rotationZ'] ?? 0.0, min: -Math.PI, max: Math.PI, step: 0.01 },
+    rotationSpeed: { value: config['Transform.rotationSpeed'] ?? 0.5, min: 0, max: 5, step: 0.01 },
     scale: { value: config['Transform.scale'] ?? 1.0, min: 0.1, max: 5, step: 0.1 },
     artworkSize: { value: config['Transform.artworkSize'] ?? 1.0, min: 0.1, max: 3, step: 0.05 },
   })
@@ -270,11 +290,17 @@ export default function AIOrb({ visibility = 1.0, position = [0, 0, 0] }) {
             rotationSpeedX={transformConfig.rotationSpeedX}
             rotationSpeedY={transformConfig.rotationSpeedY}
             rotationSpeedZ={transformConfig.rotationSpeedZ}
+            rotationX={transformConfig.rotationX}
+            rotationY={transformConfig.rotationY}
+            rotationZ={transformConfig.rotationZ}
+            rotationSpeed={transformConfig.rotationSpeed}
             scale={transformConfig.scale}
             renderOrder={layer.renderOrder}
             isCore={layer.isCore}
           />
         ))}
+        {/* Swarm Layer (Inside lens for refraction) */}
+        <SwarmLayer visibility={visibility} radius={0.8} />
       </group>
 
       {/* 2. Glass Lens Layer */}
@@ -298,6 +324,10 @@ export default function AIOrb({ visibility = 1.0, position = [0, 0, 0] }) {
             rotationSpeedX={transformConfig.rotationSpeedX}
             rotationSpeedY={transformConfig.rotationSpeedY}
             rotationSpeedZ={transformConfig.rotationSpeedZ}
+            rotationX={transformConfig.rotationX}
+            rotationY={transformConfig.rotationY}
+            rotationZ={transformConfig.rotationZ}
+            rotationSpeed={transformConfig.rotationSpeed}
             scale={transformConfig.scale}
             renderOrder={layer.renderOrder}
             isCore={layer.isCore}

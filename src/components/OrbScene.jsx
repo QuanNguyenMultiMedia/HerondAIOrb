@@ -91,9 +91,10 @@ export default function OrbScene({ visibility = 1.0, margin = 64 }) {
       <OrbitControls
         enableZoom={true}
         enablePan={false}
+        enableRotate={false}
         minDistance={2.5}
         maxDistance={8}
-        autoRotate={true}
+        autoRotate={false}
         autoRotateSpeed={0.5}
       />
     </Canvas>

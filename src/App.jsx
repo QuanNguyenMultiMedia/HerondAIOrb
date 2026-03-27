@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { levaStore, Leva, useControls } from 'leva'
 import OrbScene from './components/OrbScene'
+import config from '../ai-orb-config.json'
 import './index.css'
 
 export default function App() {
@@ -43,7 +44,7 @@ export default function App() {
         })
         
         if (res.ok) {
-          alert('Config successfully overwritten to ai-orb-config.json on disk!')
+          console.log('Config successfully overwritten to ai-orb-config.json on disk!')
           return
         }
       } catch (e) {
@@ -62,9 +63,7 @@ export default function App() {
         textArea.select()
         
         const successful = document.execCommand('copy')
-        if (successful) {
-          alert('JSON Config successfully copied to your clipboard!')
-        } else {
+        if (!successful) {
           prompt('Press Cmd+C / Ctrl+C to copy your JSON config:', jsonString)
         }
         document.body.removeChild(textArea)
@@ -92,10 +91,10 @@ export default function App() {
   }
 
   const { canvasWidth, canvasHeight, isFullScreen, margin } = useControls('Canvas Dimensions', {
-    isFullScreen: { value: true },
+    isFullScreen: { value: config['Canvas Dimensions.isFullScreen'] ?? true },
     canvasWidth: { value: 512, min: 64, max: 2048, step: 1, render: (get) => !get('Canvas Dimensions.isFullScreen') },
     canvasHeight: { value: 512, min: 64, max: 2048, step: 1, render: (get) => !get('Canvas Dimensions.isFullScreen') },
-    margin: { value: 64, min: 0, max: 256, step: 1 },
+    margin: { value: config['Canvas Dimensions.margin'] ?? 64, min: 0, max: 256, step: 1 },
   })
 
   const containerStyle = isFullScreen ? {
